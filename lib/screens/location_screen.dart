@@ -1,32 +1,56 @@
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:weather_app/screens/city_screen.dart';
 import 'package:weather_app/services/weather.dart';
-
-import '../services/location.dart';
 import '../utilities/constants.dart';
 
 class LocationScreen extends StatefulWidget {
-  final WeatherModel weatherData;
-  const LocationScreen({super.key, required this.weatherData});
+  final weatherData;
+  const LocationScreen({super.key, this.weatherData});
 
   @override
   LocationScreenState createState() => LocationScreenState();
 }
 
 class LocationScreenState extends State<LocationScreen> {
-  late int temp;
-  late String cityName;
-  late String icon;
-  late String description;
+  ImageProvider networkImage =
+      const NetworkImage('https://source.unsplash.com/random/?cloud');
+
+  ImageProvider assetImage = const AssetImage('images/location_background.jpg');
+
+  bool isLoaded = false;
+
+  WeatherModel weather = WeatherModel();
+
+  num temp = 0;
+  int condition = 0;
+  String description = 'there is no weather data';
+  late String cityName = '';
+  late String icon = 'Error';
+
+  void updateUi(var wData) {
+    setState(() {
+      if (wData != null) {
+        temp = wData['main']['temp'];
+        condition = wData['weather'][0]['id'];
+        cityName = wData['name'];
+        description = weather.getMessage(temp.toInt());
+        icon = weather.getWeatherIcon(condition);
+      }
+    });
+  }
+
   @override
   void initState() {
-    temp = widget.weatherData.temp.toInt();
-    cityName = widget.weatherData.name;
-    icon = widget.weatherData.getWeatherIcon();
-    description = widget.weatherData.getMessage();
+    networkImage
+        .resolve(const ImageConfiguration())
+        .addListener(ImageStreamListener((image, synchronousCall) {
+      setState(() {
+        isLoaded = true;
+      });
+    }));
+
+    updateUi(widget.weatherData);
     super.initState();
   }
 
@@ -38,9 +62,7 @@ class LocationScreenState extends State<LocationScreen> {
           Container(
             decoration: BoxDecoration(
               image: DecorationImage(
-                // image: AssetImage('images/location_background.jpg'),
-                image: const NetworkImage(
-                    'https://source.unsplash.com/random/?nature,day'),
+                image: isLoaded ? networkImage : assetImage,
                 fit: BoxFit.cover,
                 colorFilter: ColorFilter.mode(
                     Colors.white.withOpacity(0.8), BlendMode.dstATop),
@@ -69,7 +91,9 @@ class LocationScreenState extends State<LocationScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: <Widget>[
                     TextButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        updateUi(widget.weatherData);
+                      },
                       child: const Icon(
                         Icons.near_me,
                         size: 50.0,
@@ -77,7 +101,15 @@ class LocationScreenState extends State<LocationScreen> {
                       ),
                     ),
                     TextButton(
-                      onPressed: () {},
+                      onPressed: () async {
+                        var result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => CityScreen(),
+                          ),
+                        );
+                        updateUi(result);
+                      },
                       child: const Icon(
                         Icons.location_city,
                         size: 50.0,
@@ -92,13 +124,16 @@ class LocationScreenState extends State<LocationScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text('$icon'),
+                    Text(
+                      '$icon',
+                      style: kTempTextStyle,
+                    ),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.baseline,
                       textBaseline: TextBaseline.alphabetic,
                       children: [
                         Text(
-                          '$temp',
+                          '${temp.round()}',
                           style: kTempTextStyle,
                         ),
                         Column(
@@ -141,23 +176,11 @@ class LocationScreenState extends State<LocationScreen> {
                 ),
               ),
               Padding(
-                padding: EdgeInsets.only(right: 24.0),
+                padding: EdgeInsets.only(left: 24.0, bottom: 24),
                 child: Text(
-                  '$description',
-                  textAlign: TextAlign.right,
+                  '$description in $cityName',
+                  textAlign: TextAlign.left,
                   style: kMessageTextStyle,
-                ),
-              ),
-              ClipRRect(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                  child: Container(
-                    padding: EdgeInsets.all(34),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
-                    ),
-                    child: Text('fffffmmmmmmm'),
-                  ),
                 ),
               ),
             ],
